@@ -18,28 +18,30 @@ def extract_layer(img, index):
 
 def highlight_differences(img1_array, img2_array):
     diff = np.abs(img1_array.astype(float) - img2_array.astype(float))
+
+
     sum_diffs = []
 
     # Compare using a patch of 5x5 pixels
     for i in range(diff.shape[0] - 5):
         for j in range(diff.shape[1] - 5):
             patch = diff[i:i + 5, j:j + 5]
-            sum_diffs.append( (abs((np.sum(patch))), (i + 2, j + 2)))
+            sum_diffs.append( ((np.sum(patch)), (i + 2, j + 2)))
 
     # Get coordinates of top 10 differences
-    sorted_diffs = sorted(sum_diffs, key=lambda x: -x[0])
+    sorted_diffs = sorted(sum_diffs, key=lambda x: x[0])
 
     sorted_diffs = process_list(sorted_diffs)
     top_diff_coords = [item[1] for item in sorted_diffs[:10]]
     print(top_diff_coords)
 
-    drawing_color =  0
+    drawing_color =  255
 
     # Draw markers on the first image array
     img1_with_markers = Image.fromarray(img1_array.astype(np.uint8))
     draw = ImageDraw.Draw(img1_with_markers)
     for coord in top_diff_coords:
-        draw.ellipse([(coord[1] - 10, coord[0] - 10), (coord[1] + 10, coord[0] + 10)], outline=drawing_color, width=5)
+        draw.ellipse([(coord[1] - 10, coord[0] - 10), (coord[1] + 10, coord[0] + 10)], outline=drawing_color, width=10)
         print(f"Drawing at coordinates: {coord}")  # Debugging line
 
     return img1_with_markers
@@ -75,26 +77,25 @@ def process_layers(image_path):
 
 def create_custom_kernel():
     kernel = np.array([
-        [0, 0, 0, 0, 1, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0],
         [0, 0, 1, 1, 1, 1, 1, 0, 0],
         [0, 0, 1, 1, 1, 1, 1, 0, 0],
         [0, 0, 1, 1, 1, 1, 1, 0, 0],
-        [0, 1, 1, 1, 6, 1, 1, 1, 0],
         [0, 0, 1, 1, 1, 1, 1, 0, 0],
         [0, 0, 1, 1, 1, 1, 1, 0, 0],
-        [0, 0, 1, 1, 1, 1, 0, 0, 0],
-        [0, 0, 0, 0, 1, 0, 0, 0, 0]
+        [0, 0, 1, 1, 1, 1, 1, 0, 0],
+        [0, 0, 0, 1, 1, 1, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0]
     ])
-    # kernel = kernel - kernel.mean()
-    # kernel = kernel - kernel.sum()/kernel
+
+    # kernel = kernel - kernel.mean() # sum = 0
+    # kernel = kernel / kernel.sum() # sum = 1
+
     return kernel
 
 
 
-
-
-
-def bucket_key(coord, threshold=15):
+def bucket_key(coord, threshold=70):
     x, y = coord
     return (x // threshold, y // threshold)
 
@@ -106,12 +107,12 @@ def process_list(lst):
         if key not in buckets or buckets[key][0] < magnitude:
             buckets[key] = (magnitude, coord)
     # Step 2 and 3: Get points with highest magnitude from each bucket
-    result = sorted([(magnitude, coord) for magnitude, coord in buckets.values()])
+    result = [(magnitude, coord) for magnitude, coord in buckets.values()]
 
     return result
 
 
 # [ (magnitude (x,y),.....]
 if __name__ == '__main__':
-    image_path ='rsz_2tl.jpg'
+    image_path ='p1.png'
     process_layers(image_path)
