@@ -3,7 +3,7 @@ import json
 import shutil
 
 
-photo_dir =os.path.join('..', 'photos')
+photo_dir =os.path.join('..', 'photos','images_set')
 tl_photo_dir  = os.path.join('..', 'tl_photos')
 
 if not os.path.exists(tl_photo_dir):

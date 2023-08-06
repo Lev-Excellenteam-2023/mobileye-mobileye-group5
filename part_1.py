@@ -9,9 +9,10 @@ from scipy import signal as sg
 from scipy.ndimage import maximum_filter
 from PIL import Image
 import matplotlib.pyplot as plt
+from scipy.ndimage import label
 
 # if you wanna iterate over multiple files and json, the default source folder name is this.
-DEFAULT_BASE_DIR: str = os.path.join('.', 'photos')
+DEFAULT_BASE_DIR: str = os.path.join('.', 'tl_photos')
 
 # The label we wanna look for in the polygons json file
 TFL_LABEL = ['traffic light']
@@ -23,6 +24,39 @@ GREEN_X_COORDINATES = List[int]
 GREEN_Y_COORDINATES = List[int]
 
 
+
+def create_binary_mask_from_indices(shape, indices_list):
+    # Create a binary mask with ones at the specified indices and zeros elsewhere
+    binary_mask = np.zeros(shape, dtype=np.int32)
+    binary_mask[tuple(zip(*indices_list))] = 1
+
+    return binary_mask
+def keep_one_maximum_per_component(input_array ):
+    # Thresholding
+
+    s = [[1, 1, 1],
+         [1, 1, 1],
+         [1, 1, 1]]
+    # Perform connected component labeling
+    labeled_array, num_features = label(input_array, structure=s)
+
+
+    for f in range(1,num_features+1):
+         x_indices, y_indices  = np.where(labeled_array == f)
+         labeled_array[(x_indices[:-1],y_indices[:-1])]=0
+
+    return labeled_array
+
+
+
+def my_conv2d(image_1d,kernel):
+
+
+    image_1d = image_1d.astype(float)
+
+    return sg.correlate2d(image_1d, kernel, mode='valid')
+
+
 def find_tfl_lights(c_image: np.ndarray,
                     **kwargs) -> Tuple[RED_X_COORDINATES, RED_Y_COORDINATES, GREEN_X_COORDINATES, GREEN_Y_COORDINATES]:
     """
@@ -32,9 +66,80 @@ def find_tfl_lights(c_image: np.ndarray,
     :param kwargs: Whatever config you want to pass in here.
     :return: 4-tuple of x_red, y_red, x_green, y_green.
     """
-    ### WRITE YOUR CODE HERE ###
-    ### USE HELPER FUNCTIONS ###
-    return [500, 700, 900], [500, 550, 600], [600, 800], [400, 300]
+
+    kernel = np.array(     [-2,
+                            -8,
+                            0,
+                            0,
+                            0,
+                            1
+                            ,1
+                            ,2]).reshape(8,1)
+
+
+    kernel2 = np.array([[0, -1, 0],
+                        [-1, 5, -1],
+                        [0, -1, 0]])
+
+    filter_green_c = my_conv2d(c_image[:,:,1], kernel2)
+
+    conv_red = my_conv2d(filter_green_c,kernel)
+
+   ######## maximum filter
+    max_filter_red = maximum_filter(conv_red, size=5)
+    max_filter_red[max_filter_red < 800] = None
+    filter_red_idx = np.argwhere(max_filter_red == conv_red)
+
+   # filter_red_idx = np.array([idx for idx in t_filter_red_idx if idx in max_filter_red])
+
+    max_mask = create_binary_mask_from_indices(conv_red.shape,filter_red_idx)
+
+    max_mask_one_component = keep_one_maximum_per_component(max_mask)
+
+    filter_red_idx = np.argwhere(max_mask_one_component != 0)
+
+    print(filter_red_idx)
+
+    if filter_red_idx.any():
+        red_x , red_y = np.array(filter_red_idx[:, 0]).ravel() , np.array(filter_red_idx[:, 1]).ravel()
+    else:
+        red_x, red_y = [], []
+        print('max empty')
+
+        #print(red_x)
+    #print(red_y)
+    return red_y , red_x, [600, 800], [400, 300]
+
+
+
+
+def show_two_images(image, result):
+    """
+    Displays two 2D NumPy arrays as images side by side using matplotlib.
+
+    Parameters:
+        array1 (numpy.ndarray): The first 2D array to be displayed as an image.
+        array2 (numpy.ndarray): The second 2D array to be displayed as an image.
+    """
+
+    # Plot the original image and the convolved result
+    plt.figure(figsize=(8, 4))
+
+    # Plot the original image
+    plt.subplot(1, 2, 1)
+    plt.imshow(image)
+    plt.title('Original Image')
+    plt.axis('off')
+
+    # Plot the convolved result
+    plt.subplot(1, 2, 2)
+    plt.imshow(result,cmap="gray")
+    plt.title('Convolved Result')
+    plt.axis('off')
+
+    plt.tight_layout()
+    plt.show()
+
 
 
 ### GIVEN CODE TO TEST YOUR IMPLENTATION AND PLOT THE PICTURES
