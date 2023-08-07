@@ -21,11 +21,59 @@ from pandas import DataFrame, Series
 import numpy as np
 from scipy import signal as sg
 import scipy.ndimage as ndimage
-from scipy.ndimage import maximum_filter
+from scipy.ndimage import maximum_filter ,label
 from PIL import Image
 import matplotlib.pyplot as plt
 
 
+def create_binary_mask_from_indices(shape, indices_list):
+    # Create a binary mask with ones at the specified indices and zeros elsewhere
+    binary_mask = np.zeros(shape, dtype=np.int32)
+    binary_mask[tuple(zip(*indices_list))] = 1
+
+    return binary_mask
+def keep_one_maximum_per_component(input_array ):
+    # Thresholding
+
+    s = [[1, 1, 1],
+         [1, 1, 1],
+         [1, 1, 1]]
+    # Perform connected component labeling
+    labeled_array, num_features = label(input_array, structure=s)
+
+
+    for f in range(1,num_features+1):
+         x_indices, y_indices  = np.where(labeled_array == f)
+         labeled_array[(x_indices[:-1],y_indices[:-1])]=0
+
+    return labeled_array
+def my_conv2d(image_1d,kernel):
+
+
+    image_1d = image_1d.astype(float)
+
+    return sg.correlate2d(image_1d, kernel, mode='valid')
+
+def get_max_points(conv_2d):
+     #TODO MAXFILTER == CONV_2D
+    #max filter and thresh
+    max_filter = maximum_filter(conv_2d, size=15)
+
+    filter_idx = np.argwhere(max_filter >= 0.95)
+
+
+    max_mask = create_binary_mask_from_indices(conv_2d.shape, filter_idx)
+
+    max_mask_one_component = keep_one_maximum_per_component(max_mask)
+
+    filter_one_component_idx = np.argwhere(max_mask_one_component != 0)
+
+    if filter_one_component_idx.any():
+        x,  y = np.array(filter_one_component_idx[:, 0]).ravel(), np.array(filter_one_component_idx[:, 1]).ravel()
+    else:
+         x,  y = [], []
+
+    return list(x) ,list(y)
 def find_tfl_lights(c_image: np.ndarray, **kwargs) -> Dict[str, Any]:
     """
     Detect candidates for TFL lights. Use c_image, kwargs and you imagination to implement.
@@ -36,21 +84,29 @@ def find_tfl_lights(c_image: np.ndarray, **kwargs) -> Dict[str, Any]:
     # Note there are no explicit strings in the code-base. ALWAYS USE A CONSTANT VARIABLE INSTEAD!.
     """
 
-    # Okay... Here's an example of what this function should return. You will write your own of course
-    x_red: List[float] = (np.arange(-100, 100, 20) + c_image.shape[1] / 2).tolist()
-    y_red: List[float] = [c_image.shape[0] / 2 - 120] * len(x_red)
-    x_green: List[float] = x_red
-    y_green: List[float] = [c_image.shape[0] / 2 - 100] * len(x_red)
+    kernel = np.array(
+        [[0, 0, 0], [0, 1, 0], [0, 0, 0] ])
 
-    if kwargs.get('debug', False):
-        # This is here just so you know you can do it... Look at parse_arguments() for details
-        if np.random.rand() > kwargs.get('some_threshold', 0) / 45:
-            print("You're lucky, aren't you???")
+    red_channel = c_image[:, :, 0]
+    blue_channel = c_image[:, :, 2]
 
+    red_mask = (red_channel < 0.9) | (blue_channel > 0.85)
+
+    red_channel_copy = red_channel.copy()
+    red_channel_copy[red_mask] = [0]
+
+
+    conv_red = my_conv2d(red_channel_copy, kernel)
+
+    y_red, x_red = get_max_points(conv_red)
+
+
+    y_green, x_green = [300],[300]
     return {X: x_red + x_green,
             Y: y_red + y_green,
             COLOR: [RED] * len(x_red) + [GRN] * len(x_green),
             }
+
 
 
 def test_find_tfl_lights(row: Series, args: Namespace) -> DataFrame:
@@ -77,6 +133,9 @@ def test_find_tfl_lights(row: Series, args: Namespace) -> DataFrame:
 
     # Copy all image metadata from the row into the results, so we can track it later
     for k, v in row.items():
+
+        if k =='x' or k=='y':
+            continue
         attention[k] = v
 
     tfl_x: np.ndarray = attention[X].values
