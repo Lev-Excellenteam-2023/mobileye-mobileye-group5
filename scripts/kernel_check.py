@@ -4,76 +4,26 @@ from PIL import Image, ImageDraw
 from matplotlib import pyplot as plt
 
 
+def resize_image_by_scale(image_path, scale_factor, output_path=""):
+    img = Image.open(image_path)
+    width, height = img.size
+    return img.resize((int(width * scale_factor), int(height * scale_factor)))
+
+
+def convert_to_original_index(x_resized, y_resized, scale_factor):
+    x_original = int(x_resized / scale_factor)
+    y_original = int(y_resized / scale_factor)
+    return (x_original, y_original)
+
+
 def apply_kernel(img_array, kernel):
-    processed_image = convolve2d(img_array, kernel, mode='same', boundary='symm')
-    return processed_image
+    return convolve2d(img_array, kernel, mode='same', boundary='symm')
+
 
 
 def extract_layer(img, index):
-    arr = np.asarray(img)
-    layer = arr[:, :, index]
-    return layer
+    return np.asarray(img)[:, :, index]
 
-
-def highlight_differences(img1_array, img2_array,path_to_org_img = "p2.png"):
-    # diff = [ | a1 - b1 | , | a2 - b2 | .....]
-    diff = np.abs(img1_array.astype(float) - img2_array.astype(float))
-
-    # shape of sum_diff = [ ( sum of patch 5x5 from diff , ( idx_x,idx_y) , ....... ]
-    sum_diffs = []
-    # Compare using a patch of 5x5 pixels
-    for i in range(diff.shape[0] - 5):
-        for j in range(diff.shape[1] - 5):
-            patch = diff[i:i + 5, j:j + 5]
-            sum_diffs.append(((np.sum(patch)), (i + 2, j + 2)))
-
-    sum_diffs = process_list(sum_diffs)  # it wll delete the closes points
-    sorted_diffs = sorted(sum_diffs, key=lambda x: -x[0])
-    top_diff_coords = [item[1] for item in sorted_diffs[:5]]  # how many points we want
-
-    #  replace to the correct coordinates
-    for i in range(len(top_diff_coords)):
-        top_diff_coords[i] = convert_to_original_index(top_diff_coords[i][0], top_diff_coords[i][1], 0.15)
-
-    img = Image.open(path_to_org_img)
-
-    green_layer = extract_layer(img, 1)
-    red_layer = extract_layer(img,0)
-
-    drawing_color = 255
-
-
-    img1_with_markers = Image.fromarray(green_layer.astype(np.uint8))
-    draw = ImageDraw.Draw(img1_with_markers)
-    for coord in top_diff_coords:
-        draw.ellipse([(coord[1] - 30, coord[0] - 30), (coord[1] + 30, coord[0] + 30)], outline=drawing_color, width=10)
-    return img1_with_markers
-
-
-def process_layers(image_path):
-    img = Image.open(image_path)
-    kernel = create_custom_kernel()
-
-    # Process green layer
-    green_layer = extract_layer(img, 1)
-    green_layer_processed = apply_kernel(green_layer, kernel)
-    highlighted_green = highlight_differences(green_layer, green_layer_processed)
-
-    # Process red layer
-    red_layer = extract_layer(img, 0)
-    red_layer_processed = apply_kernel(red_layer, kernel)
-    highlighted_red = highlight_differences(red_layer, red_layer_processed)
-
-    plt.figure(figsize=(12, 6))
-    plt.subplot(1, 2, 1)
-    plt.imshow(highlighted_red, cmap='gray')
-    plt.title('Red Layer with Differences')
-
-    plt.subplot(1, 2, 2)
-    plt.imshow(highlighted_green, cmap='gray')
-    plt.title('Green Layer with Differences')
-
-    plt.show()
 
 
 def create_custom_kernel():
@@ -103,30 +53,74 @@ def create_custom_kernel():
     return normalized_kernel
 
 
-def bucket_key(coord, threshold=10):
+#  if key is 10 then wll have idxs like [ (10,10),(20,20),..]
+#  wll choose as threshold the min distance between 2 entities
+def bucket_key(coord, threshold=30):
     x, y = coord
     return (x // threshold, y // threshold)
 
 
 def process_list(lst):
     buckets = {}
-    # Step 1: Bucketize each point
     for magnitude, coord in lst:
         key = bucket_key(coord)
         if key not in buckets or buckets[key][0] < magnitude:
             buckets[key] = (magnitude, coord)
-    # Step 2 and 3: Get points with highest magnitude from each bucket
     result = [(magnitude, coord) for magnitude, coord in buckets.values()]
-
     return result
 
 
-def convert_to_original_index(x_resized, y_resized, scale_factor):
-    x_original = int(x_resized / scale_factor)
-    y_original = int(y_resized / scale_factor)
-    return (x_original, y_original)
+def highlight_differences(img1, img2, original_image):
+    img1_array = np.array(img1)
+    img2_array = np.array(img2)
+
+    diff = np.abs(img1_array.astype(float) - img2_array.astype(float))
+
+    sum_diffs = [(np.sum(diff[i:i + 5, j:j + 5]), (i + 2, j + 2))
+                 for i in range(diff.shape[0] - 5) for j in range(diff.shape[1] - 5)]
+
+    sum_diffs = process_list(sum_diffs)
+    top_diff_coords = [item[1] for item in sorted(sum_diffs, key=lambda x: -x[0])[:10]]
+
+    for i in range(len(top_diff_coords)):
+        top_diff_coords[i] = convert_to_original_index(*top_diff_coords[i], 0.15)
+
+    draw = ImageDraw.Draw(original_image)
+    for coord in top_diff_coords:
+        draw.ellipse([(coord[1] - 30, coord[0] - 30), (coord[1] + 30, coord[0] + 30)], outline=255, width=10)
+
+    return original_image
+
+
+def process_layers(image_path):
+    kernel = create_custom_kernel()
+
+    img = Image.open(image_path)
+    original_red = extract_layer(img, 0)
+    original_green = extract_layer(img, 1)
+
+    img_resized = resize_image_by_scale(image_path, 0.15)
+    red_resized = extract_layer(img_resized, 0)
+    green_resized = extract_layer(img_resized, 1)
+
+    red_processed = apply_kernel(red_resized, kernel)
+    green_processed = apply_kernel(green_resized, kernel)
+
+    highlighted_red = highlight_differences(red_resized, red_processed, Image.fromarray(original_red))
+    highlighted_green = highlight_differences(green_resized, green_processed, Image.fromarray(original_green))
+
+    plt.figure(figsize=(12, 6))
+    plt.subplot(1, 2, 1)
+    plt.imshow(highlighted_red, cmap='gray')
+    plt.title('Red Layer with Differences')
+
+    plt.subplot(1, 2, 2)
+    plt.imshow(highlighted_green, cmap='gray')
+    plt.title('Green Layer with Differences')
+
+    plt.show()
 
 
 if __name__ == '__main__':
-    image_path = 'resized_rsz_2tl.png'
+    image_path = '../local_tests/rsz_2tl.jpg'
     process_layers(image_path)
