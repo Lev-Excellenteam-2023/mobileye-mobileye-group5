@@ -61,7 +61,6 @@ def get_max_points(conv_2d):
 
     filter_idx = np.argwhere(max_filter >= 0.95)
 
-
     max_mask = create_binary_mask_from_indices(conv_2d.shape, filter_idx)
 
     max_mask_one_component = keep_one_maximum_per_component(max_mask)
@@ -69,7 +68,7 @@ def get_max_points(conv_2d):
     filter_one_component_idx = np.argwhere(max_mask_one_component != 0)
 
     if filter_one_component_idx.any():
-        x,  y = np.array(filter_one_component_idx[:, 0]).ravel(), np.array(filter_one_component_idx[:, 1]).ravel()
+        x,  y = np.array(filter_one_component_idx[:, 0]).ravel() -7, np.array(filter_one_component_idx[:, 1]).ravel()-7
     else:
          x,  y = [], []
 
@@ -84,24 +83,36 @@ def find_tfl_lights(c_image: np.ndarray, **kwargs) -> Dict[str, Any]:
     # Note there are no explicit strings in the code-base. ALWAYS USE A CONSTANT VARIABLE INSTEAD!.
     """
 
-    kernel = np.array(
+
+    # kernel_size = 25
+    # kernel_value = 1 / (25*25)
+    #
+    # # Create a 5x5 kernel with each value being 1/25
+    # low_pass_kernel = np.full((kernel_size, kernel_size), kernel_value)
+    #
+    # print(low_pass_kernel)
+
+    kernel1 = np.array(
         [[0, 0, 0], [0, 1, 0], [0, 0, 0] ])
+    kernel = np.array(
+       [[1/4, 1/4], [1/4, 1/4]])
+
 
     red_channel = c_image[:, :, 0]
+    green_channel = c_image[:, :, 1]
     blue_channel = c_image[:, :, 2]
-
-    red_mask = (red_channel < 0.9) | (blue_channel > 0.85)
-
+    abs_white = (red_channel == 1) | (red_channel == 1) | (red_channel == 1)
+    red_mask = (red_channel < 0.8) | (blue_channel > red_channel * 0.7) | (green_channel > red_channel * 0.7 )
+    green_msk = (red_channel > 0.7) | (blue_channel * 0.8 < red_channel) | (green_channel * 0.8 < red_channel)
     red_channel_copy = red_channel.copy()
     red_channel_copy[red_mask] = [0]
-
-
-    conv_red = my_conv2d(red_channel_copy, kernel)
-
+    green_channel_copy = green_channel.copy()
+    green_channel_copy[green_msk] = [0]
+    conv_red = my_conv2d(red_channel_copy, kernel1)
+    conv_green = my_conv2d(green_channel_copy, kernel1)
     y_red, x_red = get_max_points(conv_red)
+    y_green, x_green = get_max_points(conv_green)
 
-
-    y_green, x_green = [300],[300]
     return {X: x_red + x_green,
             Y: y_red + y_green,
             COLOR: [RED] * len(x_red) + [GRN] * len(x_green),
