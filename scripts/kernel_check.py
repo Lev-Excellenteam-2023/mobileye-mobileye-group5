@@ -2,7 +2,6 @@ import numpy as np
 from scipy.signal import convolve2d
 from PIL import Image, ImageDraw
 from matplotlib import pyplot as plt
-from scipy.spatial import KDTree
 
 
 def apply_kernel(img_array, kernel):
@@ -16,37 +15,39 @@ def extract_layer(img, index):
     return layer
 
 
-def highlight_differences(img1_array, img2_array):
+def highlight_differences(img1_array, img2_array,path_to_org_img = "p2.png"):
+    # diff = [ | a1 - b1 | , | a2 - b2 | .....]
     diff = np.abs(img1_array.astype(float) - img2_array.astype(float))
 
-
+    # shape of sum_diff = [ ( sum of patch 5x5 from diff , ( idx_x,idx_y) , ....... ]
     sum_diffs = []
-
     # Compare using a patch of 5x5 pixels
     for i in range(diff.shape[0] - 5):
         for j in range(diff.shape[1] - 5):
             patch = diff[i:i + 5, j:j + 5]
-            sum_diffs.append( ((np.sum(patch)), (i + 2, j + 2)))
+            sum_diffs.append(((np.sum(patch)), (i + 2, j + 2)))
 
-    # Get coordinates of top 10 differences
-    sorted_diffs = sorted(sum_diffs, key=lambda x: x[0])
+    sum_diffs = process_list(sum_diffs)  # it wll delete the closes points
+    sorted_diffs = sorted(sum_diffs, key=lambda x: -x[0])
+    top_diff_coords = [item[1] for item in sorted_diffs[:5]]  # how many points we want
 
-    sorted_diffs = process_list(sorted_diffs)
-    top_diff_coords = [item[1] for item in sorted_diffs[:10]]
-    print(top_diff_coords)
+    #  replace to the correct coordinates
+    for i in range(len(top_diff_coords)):
+        top_diff_coords[i] = convert_to_original_index(top_diff_coords[i][0], top_diff_coords[i][1], 0.15)
 
-    drawing_color =  255
+    img = Image.open(path_to_org_img)
 
-    # Draw markers on the first image array
-    img1_with_markers = Image.fromarray(img1_array.astype(np.uint8))
+    green_layer = extract_layer(img, 1)
+    red_layer = extract_layer(img,0)
+
+    drawing_color = 255
+
+
+    img1_with_markers = Image.fromarray(green_layer.astype(np.uint8))
     draw = ImageDraw.Draw(img1_with_markers)
     for coord in top_diff_coords:
-        draw.ellipse([(coord[1] - 10, coord[0] - 10), (coord[1] + 10, coord[0] + 10)], outline=drawing_color, width=10)
-        print(f"Drawing at coordinates: {coord}")  # Debugging line
-
+        draw.ellipse([(coord[1] - 30, coord[0] - 30), (coord[1] + 30, coord[0] + 30)], outline=drawing_color, width=10)
     return img1_with_markers
-
-
 
 
 def process_layers(image_path):
@@ -78,26 +79,34 @@ def process_layers(image_path):
 def create_custom_kernel():
     kernel = np.array([
         [0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0],
         [0, 0, 1, 1, 1, 1, 1, 0, 0],
-        [0, 0, 1, 1, 1, 1, 1, 0, 0],
-        [0, 0, 1, 1, 1, 1, 1, 0, 0],
-        [0, 0, 1, 1, 1, 1, 1, 0, 0],
-        [0, 0, 1, 1, 1, 1, 1, 0, 0],
-        [0, 0, 1, 1, 1, 1, 1, 0, 0],
-        [0, 0, 0, 1, 1, 1, 0, 0, 0],
+        [0, 1, 1, 1, 1, 1, 1, 1, 0],
+        [0, 0, 1, 1, 1, 1, 1, 1, 0],
+        [0, 0, 0, 1, 1, 1, 1, 0, 0],
+        [0, 0, 0, 1, 1, 1, 1, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0],
         [0, 0, 0, 0, 0, 0, 0, 0, 0]
     ])
+    # kernel = kernel - kernel.mean()
+    normalized_kernel = kernel / kernel.sum()
 
-    # kernel = kernel - kernel.mean() # sum = 0
-    # kernel = kernel / kernel.sum() # sum = 1
-
-    return kernel
-
+    return normalized_kernel
 
 
-def bucket_key(coord, threshold=70):
+def bucket_key(coord, threshold=10):
     x, y = coord
     return (x // threshold, y // threshold)
+
 
 def process_list(lst):
     buckets = {}
@@ -112,7 +121,12 @@ def process_list(lst):
     return result
 
 
-# [ (magnitude (x,y),.....]
+def convert_to_original_index(x_resized, y_resized, scale_factor):
+    x_original = int(x_resized / scale_factor)
+    y_original = int(y_resized / scale_factor)
+    return (x_original, y_original)
+
+
 if __name__ == '__main__':
-    image_path ='p1.png'
+    image_path = 'resized_rsz_2tl.png'
     process_layers(image_path)
