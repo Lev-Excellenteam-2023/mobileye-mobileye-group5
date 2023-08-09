@@ -1,6 +1,7 @@
 # This file contains the skeleton you can use for traffic light attention
 import json
 import argparse
+import random
 from datetime import datetime
 from argparse import Namespace
 from pathlib import Path
@@ -33,30 +34,6 @@ MAX_RED_RATE = 0.7
 GREEN_THRESHOLD = 0.95
 
 
-def create_binary_mask_from_indices(shape, indices_list):
-    # Create a binary mask with ones at the specified indices and zeros elsewhere
-    binary_mask = np.zeros(shape, dtype=np.int32)
-    binary_mask[tuple(zip(*indices_list))] = 1
-
-    return binary_mask
-
-
-def keep_one_maximum_per_component(input_array):
-    # Thresholding
-
-    s = [[1, 1, 1],
-         [1, 1, 1],
-         [1, 1, 1]]
-    # Perform connected component labeling
-    labeled_array, num_features = label(input_array, structure=s)
-
-    for f in range(1, num_features + 1):
-        x_indices, y_indices = np.where(labeled_array == f)
-        labeled_array[(x_indices[:-1], y_indices[:-1])] = 0
-
-    return labeled_array
-
-
 def my_conv2d(image_1d, kernel):
     image_1d = image_1d.astype(float)
 
@@ -64,19 +41,21 @@ def my_conv2d(image_1d, kernel):
 
 
 def get_max_points(conv_2d, thresh: float = 0.6):
-    max_filter = maximum_filter(conv_2d, size=15)
+    random_numbers = np.random.uniform(0, 0.0000001, size=conv_2d.shape)
 
-    filter_idx = np.argwhere(max_filter >= thresh)
+    # Add the random numbers to the image
+    conv_2d = conv_2d + random_numbers
 
-    max_mask = create_binary_mask_from_indices(conv_2d.shape, filter_idx)
+    conv_2d = conv_2d.astype(float)
+    max_filter = maximum_filter(conv_2d, size=50)
 
-    max_mask_one_component = keep_one_maximum_per_component(max_mask)
+    max_filter[max_filter < thresh] = None
 
-    filter_one_component_idx = np.argwhere(max_mask_one_component != 0)
+    filter_idx = np.argwhere(max_filter == conv_2d)
 
-    if filter_one_component_idx.any():
-        x, y = np.array(filter_one_component_idx[:, 0]).ravel() - 7, \
-               np.array(filter_one_component_idx[:, 1]).ravel() - 7
+    if filter_idx.any():
+        x, y = np.array(filter_idx[:, 0]).ravel(), \
+            np.array(filter_idx[:, 1]).ravel()
     else:
         x, y = [], []
 
