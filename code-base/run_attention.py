@@ -25,6 +25,13 @@ from scipy.ndimage import maximum_filter, label
 from PIL import Image
 import matplotlib.pyplot as plt
 
+RED_CHANNEL_INDEX = 0
+GREEN_CHANNEL_INDEX = 1
+BLUE_CHANNEL_INDEX = 2
+MIN_RED_RATE = 0.6
+MAX_RED_RATE = 0.7
+GREEN_THRESHOLD = 0.95
+
 
 def create_binary_mask_from_indices(shape, indices_list):
     # Create a binary mask with ones at the specified indices and zeros elsewhere
@@ -86,23 +93,17 @@ def find_tfl_lights(c_image: np.ndarray, **kwargs) -> Dict[str, Any]:
     # Note there are no explicit strings in the code-base. ALWAYS USE A CONSTANT VARIABLE INSTEAD!.
     """
 
-    kernel1 = np.array(
-        [[0, 0, 0], [0, 1, 0], [0, 0, 0]])
-
-    red_channel = c_image[:, :, 0]
-    green_channel = c_image[:, :, 1]
-    blue_channel = c_image[:, :, 2]
-    abs_white = (red_channel == 1) | (red_channel == 1) | (red_channel == 1)
-    red_mask = (red_channel < 0.6) | (blue_channel > red_channel * 0.7) | (green_channel > red_channel * 0.7)
-    green_msk = (red_channel > 0.7) | (blue_channel * 0.8 < red_channel) | (green_channel * 0.8 < red_channel)
+    red_channel = c_image[:, :, RED_CHANNEL_INDEX]
+    green_channel = c_image[:, :, GREEN_CHANNEL_INDEX]
+    blue_channel = c_image[:, :, BLUE_CHANNEL_INDEX]
+    red_mask = (red_channel < MIN_RED_RATE) | (blue_channel > red_channel * 0.7) | (green_channel > red_channel * 0.7)
+    green_msk = (red_channel > MAX_RED_RATE) | (blue_channel * 0.8 < red_channel) | (green_channel * 0.8 < red_channel)
     red_channel_copy = red_channel.copy()
     red_channel_copy[red_mask] = [0]
     green_channel_copy = green_channel.copy()
     green_channel_copy[green_msk] = [0]
-    conv_red = my_conv2d(red_channel_copy, kernel1)
-    conv_green = my_conv2d(green_channel_copy, kernel1)
-    y_red, x_red = get_max_points(conv_red)
-    y_green, x_green = get_max_points(conv_green, 0.95)
+    y_red, x_red = get_max_points(red_channel_copy)
+    y_green, x_green = get_max_points(green_channel_copy, GREEN_THRESHOLD)
 
     return {X: x_red + x_green,
             Y: y_red + y_green,
