@@ -84,7 +84,7 @@ def highlight_differences(img1, img2, original_image):
     half_height = KERNEL_HEIGHT // 2
     half_width = KERNEL_WIDTH // 2
 
-    # take the most time in the program
+
     sum_diffs = [
         (np.sum(diff[i:i + KERNEL_HEIGHT, j:j + KERNEL_WIDTH]),
          (i + half_height, j + half_width))
