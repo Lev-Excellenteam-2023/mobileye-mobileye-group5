@@ -89,7 +89,7 @@ def create_crops(df: DataFrame) -> DataFrame:
 
         x_coord = row[X]
         y_coord = row[Y]
-        imag_path = row[IMAG_PATH].replace("\\", "/")
+        imag_path = row[IMAG_PATH]
         color = row[COLOR]
         tl_diameter = 15  # todo get it from the caller
 
