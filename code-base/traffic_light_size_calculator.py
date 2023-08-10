@@ -75,35 +75,19 @@ def find_center_of_clustered__circle(image, x, y):
     center_y = y - count_pixel_u + (count_pixel_u +
                                     count_pixel_d) // 2
 
-    image[center_y, center_x] = [0, 0, 255]
-
     return center_y, center_x, count_pixel_left_right(image , center_x, center_y, -1 )
 
 def calc_tl_size(img, y, x):
     # get the tl from big image
     tl_img = extract_tl(img, x, y)
 
-    plt.imshow(tl_img)
-    plt.axis('off')  # Turn off axis labels and ticks
-    plt.show()
-
     cluster_tl = cluster_image_colors(tl_img, 3)
-    # Display the image using imshow()
-    plt.imshow(cluster_tl)
-    plt.axis('off')  # Turn off axis labels and ticks
-    plt.show()
 
     # get the circle data by the index in the crop image
-    x, y, radius = find_center_of_clustered__circle(cluster_tl, crop_up ,crop_x)
+    x_cluster, y_cluster, radius = find_center_of_clustered__circle(cluster_tl, crop_up ,crop_x)
 
-    cluster_tl[ x,y] = [1, 0, 0]
-
-    # Display the image using imshow()
-    plt.imshow(cluster_tl)
-    plt.axis('off')  # Turn off axis labels and ticks
-    plt.show()
-
-    return tl_y - crop_up + s_y,tl_x-crop_x + s_x , radius
+     #return the idx  center iof the image in the original img
+    return tl_y - crop_up + y_cluster,tl_x-crop_x + x_cluster , radius
 
 if __name__ == '__main__':
 
