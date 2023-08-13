@@ -125,9 +125,8 @@ dmypy.json
 *.iml
 
 partA/data
+partB/data
 
-/data/fullImages
-partA/data/fullImages
 /tl_photos
 
 

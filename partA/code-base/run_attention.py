@@ -11,7 +11,8 @@ from matplotlib.axes import Axes
 
 # Internal imports... Should not fail
 from consts import IMAG_PATH, JSON_PATH, NAME, SEQ_IMAG, X, Y, COLOR, RED, GRN, DATA_DIR, TFLS_CSV, CSV_OUTPUT, \
-    SEQ, CROP_DIR, CROP_CSV_NAME, ATTENTION_RESULT, ATTENTION_CSV_NAME, ZOOM, RELEVANT_IMAGE_PATH, COL, ATTENTION_PATH
+    SEQ, CROP_DIR, CROP_CSV_NAME, ATTENTION_RESULT, ATTENTION_CSV_NAME, ZOOM, RELEVANT_IMAGE_PATH, COL, ATTENTION_PATH, \
+    CSV_INPUT
 from misc_goodies import show_image_and_gt
 from data_utils import get_images_metadata
 from crops_creator import create_crops
@@ -98,8 +99,8 @@ def test_find_tfl_lights(row: Series, args: Namespace) -> DataFrame:
     """
     Run the attention code-base
     """
-    image_path: str = row[IMAG_PATH]
-    json_path: str = row[JSON_PATH]
+    image_path: str = row[IMAG_PATH]# .replace("\\","/")
+    json_path: str = row[JSON_PATH]# .replace("\\","/")
     image: np.ndarray = np.array(Image.open(image_path), dtype=np.float32) / 255
 
     if args.debug and json_path is not None:
@@ -171,7 +172,7 @@ def prepare_list(in_csv_file: Path, args: Namespace) -> DataFrame:
     csv_list: DataFrame = get_images_metadata(in_csv_file,
                                               max_count=args.count,
                                               take_specific=args.image)
-    return pd.concat([pd.DataFrame(columns=CSV_OUTPUT), csv_list], ignore_index=True)
+    return pd.concat([pd.DataFrame(columns=CSV_INPUT), csv_list], ignore_index=True)
 
 
 def run_on_list(meta_table: pd.DataFrame, func: callable, args: Namespace) -> pd.DataFrame:

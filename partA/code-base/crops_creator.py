@@ -89,7 +89,7 @@ def create_crops(df: DataFrame) -> DataFrame:
 
         x_coord = row[X]
         y_coord = row[Y]
-        imag_path = row[IMAG_PATH]
+        imag_path = row[IMAG_PATH]# .replace("\\","/")
         color = row[COLOR]
         tl_diameter = 15  # todo get it from the caller
 
@@ -104,6 +104,7 @@ def create_crops(df: DataFrame) -> DataFrame:
         result_template[X1] = x1
         result_template[Y0] = y0
         result_template[Y1] = y1
+        result_template[COL] = color
         result_template[CROP_PATH] = str(crop_path)
 
         # todo  implement ignore option
