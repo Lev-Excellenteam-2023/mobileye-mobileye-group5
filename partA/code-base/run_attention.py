@@ -36,7 +36,6 @@ GREEN_THRESHOLD = 0.95
 
 def my_conv2d(image_1d, kernel):
     image_1d = image_1d.astype(float)
-
     return sg.correlate2d(image_1d, kernel, mode='valid')
 
 
@@ -83,6 +82,11 @@ def find_tfl_lights(c_image: np.ndarray, **kwargs) -> Dict[str, Any]:
     green_channel_copy[green_msk] = [0]
     y_red, x_red = get_max_points(red_channel_copy)
     y_green, x_green = get_max_points(green_channel_copy, GREEN_THRESHOLD)
+
+
+
+
+
 
     return {X: x_red + x_green,
             Y: y_red + y_green,

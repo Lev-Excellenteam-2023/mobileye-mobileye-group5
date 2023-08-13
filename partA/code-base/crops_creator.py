@@ -96,7 +96,7 @@ def create_crops(df: DataFrame) -> DataFrame:
         x0, x1, y0, y1, crop_content = make_crop((x_coord, y_coord), imag_path, tl_diameter, color)
 
         crop_name = f"{row['name']}_{index}.png"
-        crop_path: Path = CROP_DIR / crop_name  # todo check how the value lookliken(os.path.join+name)
+        crop_path: Path = CROP_DIR / crop_name  # todo check how the value looklike (os.path.join+name)
 
         crop_content.save(crop_path)
 
@@ -106,7 +106,7 @@ def create_crops(df: DataFrame) -> DataFrame:
         result_template[Y1] = y1
         result_template[CROP_PATH] = str(crop_path)
 
-        # todo Check the crop for traffic lights  add params if need
+        # todo  implement ignore option
         is_true, ignore = check_crop(imag_path, x0, x1, y0, y1)
         result_template[IS_TRUE] = is_true
         result_template[IGNOR] = ignore

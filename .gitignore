@@ -124,7 +124,10 @@ dmypy.json
 .idea/
 *.iml
 
+partA/data
+
 /data/fullImages
+partA/data/fullImages
 /tl_photos
 
 
